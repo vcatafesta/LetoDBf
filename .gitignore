@@ -1,3 +1,7 @@
+# harbour hbmk2
+bin/.hbmk2
+
+
 # Object files
 *.o
 *.ko
