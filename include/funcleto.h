@@ -46,7 +46,11 @@
 
 #if ! defined( LETO_PASSWORD )
    /* !!! wild !!! password for initial decrypt received key from server with first connect */
-   #define LETO_PASSWORD       "hE8Q,jy5+R#_~?0"
+   #if defined LETO_MYPASSWORD
+      #define LETO_PASSWORD       HB_MACRO2STRING( LETO_MYPASSWORD )
+   #else
+      #define LETO_PASSWORD       "hE8Q,jy5+R#_~?0"
+   #endif
 #endif
 
 /* !!! wild !!! password for server internally to decrypt user/password file */
@@ -163,6 +167,7 @@
 #define LETO_FLAG_UPD_DELETE   0x04
 #define LETO_FLAG_UPD_UNLOCK   0x08
 #define LETO_FLAG_UPD_FLUSH    0x10
+#define LETO_FLAG_UPD_ALL      0x20
 
 extern HB_I64 leto_MilliSec( void );
 extern HB_U64 leto_MicroSec( void );

@@ -53,6 +53,7 @@ Contents
    8.2 Uhura
 9. Server-side functions
 10 Abbreviations and remarks
+11 Trouble-Shooting
 A. Internals
 
 
@@ -104,12 +105,15 @@ A. Internals
 
       2. Building binaries
 
+ * This software is designed to be yourself build from sourcecode ! *
+ * So it is recommended to check for fresh version from download origins given below *
+
  Get and build the fantastic Harbour:
-    The letodb server and client library can be compiled only by the Harbour compiler >= V3.0.
+    The letodb server can be compiled only by the Harbour compiler >= V3.0.
     It is strong recommended to download and build Harbour from the fresh 3.2 source:
        git clone https://github.com/harbour/core.git
     For this you need your C-Compiler used for Harbour in your OS search path.
-    Or to use latest binary package:
+ Or use latest Harbour binary package:
        https://sourceforge.net/projects/harbour-project/files/
     Afterall the path to the 'hbmk2' executable is also added to OS search path list.
     Follow the instructions found with Harbour.
@@ -285,9 +289,12 @@ A. Internals
  or use a third param for stop/ reload, example: ./letodb stop myini.ini
 
  Linux: it needs a pause of 1-2 minute before you can restart server after a shutdown.
- To automate that, use bash script: 'leto.sh' in "bin" directory, it will start the server
- when it is again possible. It is about the time that must elapse before TCP/IP can release a
- closed connection and reuse its resources. This is known as TIME_WAIT state.
+   To automate that, use bash script: 'leto.sh' in "bin" directory, it will start the server
+   when it is again possible. It is about the time that must elapse before TCP/IP can release a
+   closed connection and reuse its resources. This is known as TIME_WAIT state.
+ Windows: above 'start /B' command to prevent a black window can be put into a '.bat' batch file.
+   There exists some tiny tools, aka executables to 'hidden' start another process.
+   ( example incl. C-source found in: http://www.commandline.co.uk/chp/ ).
 
  --> Look into letodbf.log, that server is up -- also further server related error goes here.
  At same place, in 'letodbf_xx.log' error feedback of a specific connection may appear.
@@ -397,10 +404,11 @@ A. Internals
                                     Default: FPT for DBFCDX, DBT for DBFNTX, SMT for others.
       Memo_BSize =             -    for !expert! users !, this will change default memo blocksize
                                     for *NEW* created DBF data tables. Before doing so, you need a lesson about.
-      Lower_Path = 0           -    if 1, convert all paths and filenames to lower case;
-                                    This is useful if: all files at disk are in lower case, in your
-                                    application they are named mixed case, and the [Linux] OS for server
-                                    is case sensitive for filenames.
+      Lower_Path = 0           -    default 0: respects requested filenames case sensitive
+                                    if 1, convert all paths and filenames to lower case;
+                                    This is useful if all files at disk are in 'suggested' lower case,
+                                    but name in source-code is written in mixed or upper case,
+                                    which will fail for case sensitive 'storage' filesysten,
       EnableFileFunc = 0       -    if 1, using of file functions ( leto_file(), leto_ferase(),leto_frename() etc ..
                                     is allowed. Else these functions do nothing or return .F.
       EnableAnyExt = 0         -    if 1, *creating* of data tables and indexes with any extention, other than
@@ -695,8 +703,23 @@ A. Internals
    option: IP_SPACE to limit the allowed IP address-spaces.
    This string contains lefthand parts of the allowed IP-address range, delimited with ';'.
 
+   For establishing a new connection to the server, a hardcoded password is used.
+   'Hardcoded' means it is burned into the server executable and in the client library.
+   These passwords must be the same for server and RDD library, else connecting will fail.
+   By using another string for 'LETO_PASSWORD' in 'include/funcleto.h', you can personalize
+   your server only to be connected by applications linked with your client library.
+   To change value of LETO_PASSWORD *without* source code change, use switch to set flag:
+      hbmk2 [letodb|rddleto] -cflag=-DLETO_MYPASSWORD=MyOwnSecurePassword
+   where <MyOwnSecurePassword> can not contain ',' and avoid single and double quotation marks.
+   [ getting a compile error indicates the password string is invalid ]
+   As these passwords are burned into as 'plain text', it is fine they consist of no real words,
+   have a look for the default.
+
+   LetoDbf server can be configured to forcible accept only connections with username/ password.
+   See herefore: 4.3 Authentication
+
    Further LetoDBf offers blowfish encrypted network traffic in CBC mode.
-   This is activated on demand in conjunction with network compression, by using the secomd
+   This is activated on demand in conjunction with network compression, by using the cPassword>
    parameter in Leto_Togglezip( nLevel, cPassword ).
    Compression ( plus encryption ) can be activated immediate after a connection is established.
 
@@ -827,7 +850,7 @@ A. Internals
 
       5.2 Filters and Relations
 
-      5.2,1 Filters
+      5.2.1 Filters
 
  The filter is established usually: by the SET FILTER TO command or by calling DbSetFilter() function.
  Most important param of DbSetFilter() is the expression, the second param: DbSetFilter( bBlock, cExpression )
@@ -843,7 +866,6 @@ A. Internals
  a running server, see therefore 4.2.1 UDF supprt.
  If your expression contains a variable only known to you application, the mighty Leto_Var*() system comes into
  action. With this you can share the content of a variable at client side with the server, and vice versa.
- See therefore section 7.9 Server variables.
 
  So with the help of leto_Var*() functions plus UDF loadable functions plus a rich set of classic Harbour
  commands, it is possible to turn any non-optimized filter into an optimized.
@@ -872,8 +894,11 @@ A. Internals
  Example: 'SET FILTER TO table->field > xMemvar' will work as without LeotDBf, but as optimized filter.
  See also Leto_VarExpr*() functions if you want to do it manually, or for other occasions.
 
+ Performance optimization for can be done by adapting default settings for size/ timeout of the skip-buffer:
+ See chapter 7.3 for DBI_BUFREFRESHTIME, DBI_AUTOREFRESH and 7.5 for LETO_SETSKIPBUFFER()
 
-      5.2,2 Relations
+
+      5.2.2 Relations
 
  In server mode: No_Save_WA = 1 relations are additional active at server side. This is not possible for server
  mode: No_Save_WA = 0, here the relations are only active at client side.
@@ -985,13 +1010,15 @@ A. Internals
  Dis-connnect current connection, returns boolean if a connection is disconnected.
  With optional param <cAddress> that connection is tried to disconnect.
 
-      LETO_DETECT( [ cService ], [ nNrOfPossible ], [ nPort ] )
- This functions sends a broadcast to a specific network given by avail interfaces,
- loopback (lo) and other interfaces without MAC address are excluded from that.
+      LETO_DETECT( [ cService ],[ nNrOfPossible ],[ nPort ] )  ==> cServerIP
+ This functions sends a broadcast into the local network, to all available interfaces,
+ (virtual) interfaces loopback (lo) and other without MAC address are excluded from that.
  Default <cService> is "letodb", and this is correlating to the server side:
  see in example letodb.ini for config option: BC_Services = letodb;
- Such LetoDBf server then will respond to this query with its IP address.
- With <nNrOfPossible> can be selected between server, if more than one server is active.
+ Such configured LetoDBf server then will respond to this query with its IP/Port,
+ where <cServerIP> is in the format: "//9.9.9.9:2812/" to be used i.e. to connect
+ to the server: Leto_Connect( Leto_Detect() ),
+ With <nNrOfPossible> can be selected between multiple server responding to same service name.
  Alternative to new build-in at server was before a standalone exe: 8.2. 'Uhura'
 
       LETO_SETCURRENTCONNECTION( cAddress )                    ==> cAddress
@@ -1009,8 +1036,8 @@ A. Internals
 
       LETO_GETLOCALIP( [ lLocal ] )                            ==> IP address of client [ server ]
  Returns IP address of first found interface for subnet, which may be the wrong one,
- if you have multiple ( pgysical or logical like bridges ) NICs for that subnet.
- With optional <lLocal> == FALSE ( .F. ) returns IP address of server.
+ if you have multiple ( physical or logical like bridges ) NICs for that subnet.
+ With optional <lLocal> == FALSE ( .F. ) returns IP address of connected server.
 
       LETO_ADDCDPTRANSLATE( cClientCdp, cServerCdp )           ==> lAdded
  For xHarbour user with different CP names as Harbour ones at server.
@@ -1024,9 +1051,18 @@ A. Internals
  simply forwarded to the SET() function.
  With no given <xNewSet>, you get the active setting without changing it.
 
+      * LETO_SETLOCKTIMEOUT( [ nTimeout ] ) *
+ * deprecated -- better use RddInfo with a constant known in Harbour:
+      RDDInfo( RDDI_LOCKRETRY( [ nMilliSec ] )
+ * Setting is ignored for server mode: No_Save_WA = 0, here ever default: '0' == one try *
+ Return the old <nTimeout> value and optional set this for the active connection.
+ Default is 0 == immediate one-time single request, units are in ms ( 1/1000 s ).
+ A timeout value is applied at server as multiple lock requests as long the timespan
+ is not outreached in case of failure. Values between 50 and x000 should be useful.
 
       LETO_RECONNECT( [ cAddress ], [ cUserName ], [ cPassword ],
-                    [ nTimeOut ], [ nBufRefreshTime ], [ lZombieCheck ], [ nDelay ] )
+                      [ nTimeOut ], [ nBufRefreshTime ], [ lZombieCheck ],
+                      [ nDelay ], [ nLockTimeout ] )
                                                                ==> nConnection, -1 if failed
  All param are optional! and same as LETO_CONNECT(), plus optional 7th param <nDelay> in unit seconds.
  This will close a possible still alive or dead connection to server, and re-establish a new connection
@@ -1037,7 +1073,10 @@ A. Internals
  If it is the same server, <nDelay> will be 1.0 second to let the server close the tables and remove
  existing locks before try to establish a new connection, for different server no delay is needed.
  <nDelay> should only needed to be manually set, if a connection is made to same server, but over
- different network.
+ different network. In case of a LETO error of the old connection an extra delay is applied before
+ the network socket is closed ( default: 1 s ).
+ <nLockTimeout> in ms can be used as timeout-value to re-establish former existing locks,
+ where default value is 0 == *no* extra timeout to get a lock, one time immediate try.
 
 
       7.2 Transaction functions
@@ -1056,12 +1095,12 @@ A. Internals
  for these it leads to a !drastical! improved performance to append 10000 records in a fraction of a second.
  For RLock() an insane tremendous overhead is needed, if really **many** records need to be
  changed. Example: to Rlock() the 1000th record at server, it must search through 999 existing locks.
- In sum a compare have been done 499500 times for the 1000th record. When the transaction is applied at
- server, these Rlocks are again verified, then are 1000 * 1000 = 1 million checks needed.
+ In sum a compare have been done 499500 times for the 1000th record.
  Only 1000 Rlock() record changes of above example are taken just on the fly, but if there are 10th
  of thousands ...
 
  !! Important !! -- during an active transaction, aka after leto_BeginTransaction():
+   # NEW: if <lUnlockAll> == .T. all *un*-locks will be silent ignored until transaction end.
    # it is explicitly forbidden to mix RLock() and FLock() FOR THE SAME WORKAREA
    # you can not unlock any record or whole table ( e.g. NOT use DbUnlock() )
    # transactions must start and end with a LETO RDD workarea active, and this must be further
@@ -1073,15 +1112,24 @@ A. Internals
    # Recno() will be '0' after 'appending' a blank record with e.g. DbAppend()
    # as server does the job for auto-incrementing fields, they will be empty at client side for a
      transactioned DbAppend(). Leave them unchanged, server will fill them later during real append.
+   # a DbSeek() will not find new appended records, this is also true for relations
 
 
       LETO_BEGINTRANSACTION( [ [ lUnlockAll ] )
 
- NEW: with <lUnlockAll> param, only here default is false ( .F. )
- By default, all locks ( R-locks and F-locks ) remain,
- with .T. it's very convenient to remove them for all LETO workareas at once, which will give
+ By default, all existing locks ( R-locks and F-locks ) remain with with transaction begin.
+ With <lUnlockAll> param given as true (.T. ), all existing locks are dissolved,
+ and it's very convenient to do so for all LETO workareas at once, which will give
  you a fresh start ( aka must not think about to continue for this or that workarea with Rlock()
  or FLock().
+ NEW: by unlocking all with .T., also following *un*-locks are ignored until end of transaction.
+ This is thought to keep source-code changes as less as possible, aka it is enough to add two lines
+ with Begin/Commit -transaction to existing source, without need to remove existing unlocks.
+
+ Note: with RDDInfo( RDDI_LOCKRETRY[, nMilliSec ( default 0 ) ] ) a timeout to get a lock can be set.
+ This is very effective against repeated tries to get a lock from client side, as all happens at
+ server side, no new request to again try to lock must be send.
+
 
       LETO_ROLLBACK( [ lUnlockAll ] )                          ==> nil
 
@@ -1122,17 +1170,84 @@ A. Internals
  But functionality is still there, it is what a common DbCommit() does. Both commands are allowed to be
  used during transactions.
 
-      LETO_DBEVAL( [ <cBlock> ], [ <cFor> ], [ <cWhile> ], [ nNext ], [ nRecord ], [ lRest ] )
-                                                               ==>aResults
- ! The optional codeblocks: cBlock, cFor, cWhile must be given in literal form !
- This works alike Harbours' DbEval() command, but like an UDF directly at the server: this way only the
- resulting array is transferred over network, not all the records [ to be ] processed.
+
+      LETO_RECLOCK( [ nRecord ], [ nSecs ] )                   ==> lSuccess
+      LETO_RECUNLOCK( [ nRecord ] )                            ==> lWasLocked
+      LETO_TABLELOCK( [ nSecs ] )                              ==> lSuccess
+      LETO_TABLEUNLOCK()                                       ==> lWasLocked
+
+ Useable at client as replace for these at server-side in: 9. Server-side.
+ At client they redirect to universal RDD methods for any WA, whereas <nSecs> will temporary change
+ the timeout value setable with RDDI_LOCKRETRY, and <lWasLocked> will be FALSE if the record was
+ not R-locked. ( <nSecs> means full seconds: nSecs == 0.7 == 700 millisecond RDDI_LOCKRETRY )
+ If <nRecord> is not given, it is the active RecNo().
+
+
+      LETO_DBEVAL( <cbBlock> , [ <cbFor> ], [ <cbWhile> ], [ nNext ], [ nRecord ], [ lRest ],;
+                   [ <lResultArr> ], [ <lNeedLock> ], [ <lDescend> ], <lStay> )
+                                                               ==> lSuccess | aResults | xValue
+ This function is a 'drop-in' replace for DBEval(), and "leto_std.ch" pre-process all DBEval() calls to
+ use this function.
+ ! The codeblocks: <cBlock>, <cFor>, <cWhile> must be given literally [ "{||}" ]" to be executable at server,
+ which actually needs also server option: Allow_udf = 1.
+ If param given as (non literal) codeblock, the WA must be processed local at client side. This is also the
+ case if a non-optimized FILTER or non-optimzed RELATION are active. [ non-optimize == only at client active ].
+
+ This works alike Harbours' DbEval() command, but is optimized to act likely an UDF directly at the server,
+ so only the result is transferred over network, not all the records [ to be ] processed.
  Codeblock expressions may, but not mandatory, start/ end with '{' and '}' chars -- if these are missing,
- in front a '{||' and at end a '}' will be added.
- Codeblock receives as first argument a boolean, set to true if *first* valid record is processed, e.g.:
- "{ | lFirst | IIF( lFirst, DoThis(), DoThat() ), DoEver() }"
- ToDo : You can make e.g. sums in the codeblock by using THIS thread global var: xCB [ x means any content and CB codeblock ],
- "{ | lFirst | IIF( lFirst, xCB := 0, ), xCB += 1 }"
+ at front a '{||' and at end a '}' is added. "Literally codeblocks" are a LETO extension for DBEval().
+
+ * LetoDBf extended capability: pass two params to the codeblocks: "{ |<n>, <x>| ... }"
+   <cbBlock>: receives as <n> number of processing record, e.g.:
+              "{ | nDone | IIF( nDone == 1, DoThis(), DoThat() ), DoEver() }"
+      To sum up something, the second param <x> gives the return-value from last executed <cbBlock>,
+      which is NIL for the first execution. Following gives an usage impression:
+              "{ | nDone, xVal | IIF( nDone == 1, xVal := 1, ), xVal += 1 }"
+   <cbFor> and <cbWhile>: here <n> is number of allready valid ! processed records,
+      means same <n> as for the cbBlock, but one step before: this <n> increases after a valid <cbFor>;
+      Second param is number of overall evaluated record ( including the 'invalid'.
+      An example to impress usage with <cbFor>: check max 1000 records, stop after 3 valid found
+              "{ | nReadyDone, nEvaluated | nReadyDone < 3 .AND. nEvaluated <= 1000 }"
+
+ <nNext>, <nRecord> and <lRest> are used in same kind as in Harbour DbEval() function.
+   LetoDBf ensures the <nNext> value to be started at active record/ top of table is influenced by
+   <lRest>: given explicit as FALSE nNext starts at top of table, else it start at active record.
+
+ <lResultArr> set to TRUE ( .T. ) return a <aResults> array of the results of <cbBlock>
+   for each processed record. ( to be precise: return value of last function inside <cbBlock> )
+   With default <lResultArr> == FALSE ( .F. ), result is return value of *last* executed <cbBock>.
+
+ <lNeedLock> set TRUE ( .T. ) informs Leto_DbEvil(), that records must be locked for executing <cbBlock>.
+   If the table is *not* opened as <exclusive> or <shared with set Flock()>, RDDI_AUTOLOCK needs activated.
+   for internal RLock() done by Leto_DbEvil() for each valid record, possible with an timout given with
+   RDDI_LOCKRETRY in millisecond.
+   Default is no locking need, to just view the record data without modifying it.
+
+   With <lNeedLock> == .F., manually locking is possible by using LOCK functions inside <cbBlock>
+   [R|F]lock, DbR[un]lock and DbUnlock are invalid at server, instead Leto_Rec[Un]Lock() must be used,
+   these both functions are valid at client and at server. Example:
+   "{|| IIF( Leto_RecLock(), ..task-to-do.., NIL ), IIF( Leto_RecUnlock(), 1, -1 ) * RecNo() }"
+   will return with <lResultArr> == .T. an array with RecNo of processed records, failed to lock are negative.
+   Above example as CB ( without quotation "" ) is forcible executed local at client.
+
+ <lDescend> set to TRUE ( .T. ) will start at bottom and DbSkip() to the top -- default is top to bottom.
+
+ <lStay>, default is ,T., will stay at last processed record,
+   with a given .F. it is jumped back to record which was active when Leto_DbEval() started.
+   This FALSE activates also to try an initial Flock() for the first processed record, when successful it
+   will increases the performance drastical if *many* records have to be processed. If Flock() fails,
+   each record will be tried to be Rlock()ed.
+   Using Rlocks for some x00 records is fine, maybe even for a few thoused, but many more 'makes no fun'.
+
+ RETURN value: FALSE (.F.) for FAILURE ( e,g, auto-locking failed to lock all records )
+   <xValue> return value of last executed <cbBock> ( of the last function inside )
+   <lSuccess> == .T. if <xValue> is NIL
+   <aResults> array of <xResult> with <lResultArr> == .T.
+   A RTE occure, if one of the <cb*> codeblocks is invalid, syntactical or if local variable are in there.
+
+ Tip: have a look into "leto_std.ch" for some further examples, used in 'data processing commands' ...
+
 
       LETO_SUM( <cFieldNames>|<cExpr>, [ cFilter ], [xScopeTop], [xScopeBottom] )
                                                                ==> nSumma if one field or expression passed, or
@@ -1164,6 +1279,12 @@ A. Internals
  or non-opimized [ server send all records to client, which then must decide itself for valid records. ]
  See 5.2 for more info.
 
+      LETO_FTS( [ cSearch, [ lCaseInsensitive ], [ lNoMemo ] ) ==> lFound [ | cRawData ]
+ Full-Text-Search: with given <cSearch> string, *all* fields of a table are searched case sensitive,
+ including possible ( extern stored ) memo-fields.
+ Changeable by set logigal .T. for <lCaseInsensitive>, and dito for <lNoMemos> to exlude memo-fields.
+ If <cSearch> is not a valid string, whole record data ( no memo ) is returned for extern processing.
+
       LETO_MEMOISEMPTY( cnField [, cnAlias ] )                 ==> lEmpty ( TRUE for not a memofield )
 
  This is an optimzed function to very fast test, if a memofield of the current record is empty or not.
@@ -1172,12 +1293,12 @@ A. Internals
  whole content of a memofield to the client, before client can decide if empty or not.
  <cnField> cFIELDNAME or nFIELDPOS, <cnAlias> cALIAS or nSELECT or active WA if empty.
 
-      DbInfo( DBI_BUFREFRESHTIME[, nNewSetting  ] )            ==> nOldVal
+      DbInfo( DBI_BUFREFRESHTIME[, nBufRefreshTime  ] )        ==> nOldVal
 
  This returns the timeout value for the skipbuffer valid for the this table, before an optional
  new setting is applied with <nNewSetting>.
  Default is no specific timeout for a table, aka to use the general connection timeout value.
- With optional <nNewSetting> it can be applied a new setting only guilty for this specific table.
+ With optional <nBufRefreshTime> it can be applied a new setting only guilty for this specific table.
  "-1 " == skipbuffer disabled, "0" == infinite skipbuffer, nHotBuffer > 0 == nHotBuffer / 100 seconds.
  Above is also the possible range for <nNewSetting> -- plus a value < -1 will disable again a specific
  setting for this table. For the global timeout value see: Leto_Connect() function, 5th param.
@@ -1194,8 +1315,57 @@ A. Internals
  specific timeout -- else much network traffic will occure.
 
       DbInfo( DBI_CLEARBUFFER )
+      RDDInfo( RDDI_CLEARBUFFER )
 
-  This command clears the skip buffer, to forces to get fresh data with next Dbskip( [ 0 ] ), DbGoTo().
+  This command clears the skip buffer, and forces to get fresh data with a Dbskip( 0 ).
+  <RDDI_CLEARBUFFER> will do so for all LETO workareas of active connection.
+
+      leto_DbCreateTemp( cFile, aStruct [, cDriver, lKeepOpen, cAlias, xDelim, cCdp, nConnection ] )
+                                                              ==> lSucccess
+
+  Replaces and extends Harbour function HB_DBCREATETEMP(), as that can't be used for RDD driver "LETO".
+  Header file 'leto_std.ch' will x-translate the Harbour function into leto_DbCreateTemp() calls,
+  where <cFile> param is empty.
+  If <cFile> is empty [ NIL ], you get a 'real' temporary named table in the temporary OS directory.
+  A given <cFile> refere to a table in server <DataPath>, likely done with a common DbCreate().
+  Both resulting tables are 'temporary', means they are *automatic deleted* when table is closed.
+  If explicitely <cDriver> is given and different to "LETO", function forwardes to HB_DBCREATETEMP()
+  to create table local at client  --  if <cDriver> is empty [ NIL or "" ], "LETO" will be used.
+  Param <aStruct>  is mandatory, must ever be given,
+  <lKeepOpen> is a 'blind' param, is ever ever set true ( .T. ) -- to have same params as DbCreate().
+  This means further, that such tables are always <exclusive> opened tables - until delete.
+  Using a <cAlias> is recommended, but if missing an universal alias-name is automatically created:
+  in case of filename from that derived, else a ALIAS is created as "TMPWAxxxxxx".
+
+      leto_DbTrans( cnDstArea, aFields, cbFor, cbWhile, nNext, nRecord, lRest ) )
+      leto_DbSort( cToFile, aFields, cbFor, cbWhile, nNext, nRecord, lRest, cRDD, nConn, cCDP )
+      leto_DbArrange( cnToArea, aStruct, cbFor, cbWhile, nNext, nRecord, lRest, aFields ) )
+      leto_DbCopy( cFile, aFields, cbFor, cbWhile, nNext, nRecID, lRest, cRDD, nConn, cCDP, xDelim ) )
+      leto_DbApp( cFile, aFields, cbFor, cbWhile, nNext, nRecord, lRest, cRDD, nConn, cCDP, xDelim ) )
+      leto_DbTotal( cFile, xKey, aFields, xFor, xWhile, nNext, nRec, lRest, cRDD, nConnection, cCodePage )
+      leto_DbUpdate( cnAlias, cbKey, lRandom, aAssign, aFields )
+                                                               ==> dito
+  These functions do the same as __Db*(), see also their descriptions,
+  but above group can use a literally given <cFor> and <cWhile> expression send-able to the server:
+  then all data movement can happen at server without network load.
+  If <bFor> or <bWhile> are codeblocks, aka {||...} versus "{||...}" with apostrophs, these
+  can not transfered to server and much be evaluated (slow performent) at client side.
+  The header: "leto_std.ch" translates the corresponding COMMAND version to letoDbš() variants,
+  e.g. 'SORT TO cFile ALL FOR cFor' --> letoDbSort( cToFile, {{all fields}}, "cFor", ... ).
+
+      leto_DBJOIN( cnAlias, [cFile, [aFields], cbFor, cRDD, nConnection, cCodePage[, [ lTemp ] ] )
+                                                               ==> lSuccess
+  This functions extends the __dbJoin() function: if <Fields> is empty, all fields of active WA
+  are used for resulting table, else it contains a list of fieldnames of these both WA, or:
+  literal given CBs in form: "{|| .. }" -- these are recognozed by start+end with brackets '{''}'.
+  Fieldnames can contain an ALIAS->prefix of slave WA, fields without ALIAS assumed from master WA.
+  A literally CB can be pre-leaded by an 'alias->' as fieldname, likely: "FieldName->{|| ... }".
+  <cFile> refere to a classic table in server <DataPath>, or
+  with empty <cFile> to an unnamed, with filled <cFile> plus <lTemp> set to TRUE (.t. ), to an
+  un-named or named 'exclusive' opened temporary' table -- deleted by closing the result table.
+  It is thought to be safely used also with autoincrementing fields.
+  Different to __dbJoin(): not starting master, but result WA (at top) is selected afterwards,
+  record positions of slave and master WAs are restored.
 
 
       7.4 Additional rdd functions
@@ -1256,6 +1426,13 @@ A. Internals
  With <nNewLevel> this can be changed on the fly, no server restart is needed. This then applies to all
  active and new server connections.
 
+      RddInfo( RDDI_AUTOLOCK [, lActivated ] )                 ==> lWasActive
+
+ By default deactivated, its used in Leto_DbEval() to automatic Rlock() records before changing record data.
+ If not changed default timeout: 0 with RddInfo( RDDI_LOCKRETRY[ nMilliSec ] ), such a Rlock() will be tried only
+ one time successful or not. With timeout, server will try multiple times during the timespan. This spares
+ repeated request from the client over network.
+
       LETO_SETSEEKBUFFER( nRecsInBuf )                         ==> 0
  ! DEPRECATED !
 
@@ -1271,16 +1448,27 @@ A. Internals
  to the root path defined in letodb.ini with DataPath.  Only ONE ( 1 ) single ".." is allowed.
  Exception: filenames starting with "mem:" redirects into the RAM of server (virtual HbNetIO FS )
 
- Recommended is to use plain filenames, after the use of Leto_Connect().
+ For portability reasons its recommended to use plain filenames, without (or empty) server prefix
+ -- after initial establishing a connection with Leto_Connect().
+ If the whole connection prefix "//..:../" is omitted, the currently active connection is used;
+ if non connection is still available, it will be established by such a connection prefix.
+ After connection is established, you can leave away all this IP:port prefix ...
 
  Alternatively in the OLD style, the <cFileName> parameter of all file functions *can* contain a
  connection string to the letodb server in a format:
  //IP_address:port/[mem:][\]file_name
  where IP_address can be also a DNS name like example "localhost".
+ This old style may be an alternative if working with multiple LetoDBf server simultanous,
+ but can in such kind also be done by switching active connection with often noted Leto_Connect().
 
- If the whole connection prefix "//..:../" is omitted, the currently active connection is used.
- Such an connection is established with recommended: Leto_Connect() -or- after a aingle LetoDbf command
- by using correct connection prefix. After connection is established, can leave away all this IP:port ...
+ Experienced hint: in include directory is the the header: "letofile.ch".
+ By applying it as additional default header: "-u+letofile.ch" at command line/ .hbp for hbmk2,
+ all local file functions in your source then work at server side. For some functions to work,
+ 'Allow_UDF' config option must be set for server.
+ What group of functions then work at server, and which groups continue to act local at client,
+ can be configured in header letofile.ch' -- by default all except group: "Fxxx()" is
+ pre-processed to use Leto_F*() variants.
+
 
       Leto_FError( [ lAskServer ] )                            ==> nError
  Returns an error code set by ( some, not for all ) file functions at client.
@@ -1838,8 +2026,10 @@ A. Internals
   If you append a record in your UDF, which is locked after a successful append, you have to only
   register it for your connection, done by third param set to TRUE ( .T. ) == append lock.
 
-      leto_RecUnLock( [ nRecord ] )                            ==> Nil
-  leto_RecUnlock function unlocks a locked record with <nRecord> number, or the current record.
+      leto_RecUnLock( [ nRecord ] )                            ==> lWasLocked
+  leto_RecUnlock function unlocks a locked record with <nRecord> number.
+  No given <nRecord> means the active record.
+  If the record was not R-locked, FALSE (.F.) is returned.
 
       leto_RecLockList( aRecNo )                               ==> lSuccess
   leto_ReclockList function locked records with number in the <aRecNo> array.
@@ -1849,12 +2039,13 @@ A. Internals
   client by a call leto_UDF( "leto_RecLockList", aRecNo ).
 
       leto_TableLock( [ nSecs ] )                              ==> lSuccess
-      leto_TableUnLock()
+      leto_TableUnLock()                                       ==> lWasLocked
   [ deprecated: no more <nFlags> param available ]
   This will lock the whole DBF table, not only a single record, for data change access.
   <nSecs> param is only available in server file open mode: No_save_WA = 1.
   With given optional <nSecs> [ can be decimal: 1.5 ] it will wait for success if not
   immediate succesfull.
+  If the table was not F-locked, FALSE (.F.) is returned.
 
       leto_SelectArea( nAreaId )                               ==> lSuccess
 
@@ -1902,8 +2093,11 @@ A. Internals
       leto_DbCloseArea( [ ncAreaID ] )                         ==> lSuccess
  Close the active or by numeric or by string ALIAS given workarea.
 
-      leto_DbEval( cbBlock, cbFor, cbWhile, nNext, nRecord, lRest )
-                                                               ==> aResults
+      LETO_DBEVAL( <cbBlock> , [ <cbFor> ], [ <cbWhile> ], [ nNext ], [ nRecord ], [ lRest ],;
+                   [ <lResultArr> ], [ <lNeedLock> ], [ <lDescend> ], <lStay> )
+                                                               ==>lSuccess | aResults | xValue
+
+ * look for explanation for extended params versus DBEval() in chapter:  7.3 Additional functions *
 
  This UDF function is same kind as DbEval() of Harbour. The three codeblocks may be given
  instead as a codeBlock within an UDF function or as string parameters when called 'directly'
@@ -1926,6 +2120,13 @@ A. Internals
  thread. This functions reports about that, then it shell end.
  Example: DO WHILE .NOT. leto_UDFMustQuit(); do something; ENDDO; RETURN
  Especially useful for threads started with Leto_RPC().
+
+      leto_WUsLog( cText )
+ Write <cText> into connection specific log file: letodbf_xx.log.
+ [ "WUsLog" reads: W-rite Us-er Log ]
+
+      leto_WrLog( cText )
+ Write <cText> into global server log file: letodbf.log.
 
  Following functions same as for LetoDBf client, now also without nUserStru.
  Note: xValue will be 'NIL' in case of not found cGroupName/ cVarName.
@@ -1976,6 +2177,60 @@ A. Internals
      mode: NO_Save_Wa = 1.
    # maximum numeric value for a field: "N", 20, 0 is: +/- 9223372036854775807
      one more (or less) and rounding will occure with trailing zeroes
+
+
+
+      11 Trouble-Shooting
+
+ + server will not start
+   -> check <DataPath> in 'letodb.ini' -- search for server log 'letodbf.log'
+ + tables cannot accessed
+   * case-sensitive OS filesystem, and in your source written likely in mixed-Case
+      -> rename all files to lowercase, use config option: <Lower_Path>
+   * OS access rights
+      -> set <Server_User> -or- <Server_UID> [ + <Server_GID> ]
+ + server storage is loudly rattling, bad performance in accessing files
+   -> do *not* use <hardcommit> option in letodb.ini
+
+ + low bandwith network only available, what to improve
+   -> optimze performance
+      If LetoDbf specific lines must be added to source code, they are best enclosed in:
+      #ifdef LETO_DBF   /* or: RDDLETO_CH_ , both defined in "rddleto.ch" */
+         ...
+      #endif  /* to keep the source portable to usage without LetoDBf */
+      If you need to disable existing source lines for LetoDBf, use:
+      #ifndef LETO_DBF   /* reads: if n[ot] defined */
+         ...
+      #endif
+
+      * remove DbCommit[All](), or at least disable them for LetoDBf
+        This is only needed to inform the server about updated data for other users
+        *without* unlocking record and *without* SKIP/GOTO to another record.
+        In all other cases it causes needless extra network traffic.
+      * make <filter> and <relation> expressions be evaluable at server-side,
+        [ chapter: 5.2 Filters and Relations ]
+        Important is usage of param *<cEpression>* in functions:
+        DbSetFilter( [ <bCodeBlock> ], <cEpression> ) and
+        DbSetRelation( <cnAlias>, <bCodeBlock>, cEpression> )
+      * increase Leto_SetSkipbuffer() size for occasions where to skip a lot,
+        [ e.g. the classic: "DO WHILE ! EOF(), DbSkip(), ... " ]
+        It is counter-productive! when only a few records need to be skipped,
+        so very best to reset to default value [ 10 | 21 ] shortly after changes.
+        Changing server default is possible with config option: Cache_Records
+      * increase cached records timeout [ default is 1 second ] with setting
+        DBI_BUFREFRESHTIME, or with: LETO_CONNECT( ,,,,,<nBufRefreshTime> )
+        Do not exaggerate!, try 5 to 10 seconds [ values given as x / !100! s ]
+      * in need to determine if a MEMO-field is 'empty or not empty', without needing the
+        content itself ( i.e. to display in a browse "MEMO" or "memo" if its empty ),
+        use Leto_MemoIsEmpty(): needs no extra request to server, client knows that already
+      * try to activate network traffic compression with Leto_ToggleZip()
+      * check if you can use TRANSACTIONs,
+      * hire me! ;-)
+ + high frequent changing data must be viewed
+   -> decrease cache timeout set with DBI_BUFREFRESHTIME cache,
+      or the LETO_CONNECT( ,,,,,<nBufRefreshTime> )
+   -> perhaps activate even DBI_AUTOREFRESH
+
 
 
 -------------

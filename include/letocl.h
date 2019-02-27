@@ -82,6 +82,8 @@
 
 #define leto_firstchar( pConnection )  pConnection->szBuffer + 1
 #define LETO_CENTISEC()                ( leto_MilliSec() / 10 )
+#define LETO_DEFAULT_TIMEOUT           120000  /* two minutes */
+#define LETO_INITIAL_TIMEOUT             6000
 
 #ifndef LETO_DOPCODE_LEN
    #define LETO_DOPCODE_LEN         7
@@ -226,6 +228,7 @@ typedef struct _LETOCONNECTION_
    HB_BOOL           fCloseAll;
    PCDPSTRU          pCdpTable;
    HB_BOOL           fTransActive;
+   HB_BOOL           fTransForce;          /* to ignore un!locks during transaction */
    HB_BYTE *         szTransBuffer;        /* buffered transaction data */
    HB_ULONG          ulTransBuffLen;       /* allocated len */
    HB_ULONG          ulTransDataLen;       /* buffered data len */
@@ -248,6 +251,7 @@ typedef struct _LETOCONNECTION_
    HB_ULONG          ulBufCryptLen;
    int               iZipRecord;
    HB_BOOL           fZipCrypt;
+   HB_BOOL           fDbEvalCompat;        /* enable scope to REST if WHILE/NEXT given */
    int               iBufRefreshTime;      /* in 0.01 sec, afterwards SKIP buffer refresh */
    HB_USHORT         uiDriver;             /* default driver 0 = NTX, 1 = CDX */
    char              szDriver[ HB_RDD_MAX_DRIVERNAME_LEN + 1 ];       /* DBF driver NAME */
@@ -262,6 +266,7 @@ typedef struct _LETOCONNECTION_
    int               iDebugMode;
    HB_USHORT         uiServerMode;         /* server file mode: 1,3 == shareTables=0, >= 3 NoSaveWa=1 */
    HB_BOOL           fLowerCase;           /* server config option Lower_Path */
+   HB_BOOL           fUDFAllowed;          /* server config option Allow_UDF, set after first test */
    int               iErrorCode;
    HB_FHANDLE        hSockPipe[ 2 ];
    HB_BYTE           uSrvLock;             /* 0 or type of server 'lock for e.g. replication' mode */
@@ -290,7 +295,7 @@ extern HB_EXPORT HB_ERRCODE LetoRddInfo( LETOCONNECTION * pConnection, HB_USHORT
 extern HB_EXPORT HB_ERRCODE LetoDbCloseTable( LETOTABLE * pTable );
 extern HB_EXPORT HB_ERRCODE LetoDbDrop( LETOCONNECTION * pConnection, const char * szTFileName, const char * szIFileName );
 extern HB_EXPORT HB_ERRCODE LetoDbExists( LETOCONNECTION * pConnection, const char * szTFileName, const char * szIFileName );
-extern HB_EXPORT LETOTABLE * LetoDbCreateTable( LETOCONNECTION * pConnection, const char * szFile, const char * szAlias, const char * szFields, unsigned int uiArea, const char * szCdpage );
+extern HB_EXPORT LETOTABLE * LetoDbCreateTable( LETOCONNECTION * pConnection, const char * szFile, const char * szAlias, const char * szFields, unsigned int uiArea, const char * szCdpage, HB_BOOL fTemporary );
 extern HB_EXPORT LETOTABLE * LetoDbOpenTable( LETOCONNECTION * pConnection, const char * szFile, const char * szAlias, int iShared, int iReadOnly, const char * szCdp, unsigned int uiArea );
 extern HB_EXPORT const char * LetoDbGetMemo( LETOTABLE * pTable, unsigned int uiIndex, unsigned long * ulLen );
 extern HB_EXPORT HB_ERRCODE LetoDbRecCount( LETOTABLE * pTable, unsigned long * ulCount );
@@ -301,6 +306,7 @@ extern HB_EXPORT HB_ERRCODE LetoDbSkip( LETOTABLE * pTable, long lToSkip );
 extern HB_EXPORT HB_ERRCODE LetoDbPutRecord( LETOTABLE * pTable );
 extern HB_EXPORT HB_ERRCODE LetoDbPutMemo( LETOTABLE * pTable, unsigned int uiIndex, const char * szValue, unsigned long ulLenMemo );
 extern HB_EXPORT HB_ERRCODE LetoDbAppend( LETOTABLE * pTable, unsigned int fUnLockAll );
+extern HB_EXPORT HB_ERRCODE LetoDbEval( LETOTABLE * pTable, const char * szBlock, const char * szFor, const char * szWhile, long lNext, long lRecNo, int iRest, HB_BOOL fResultSet, HB_BOOL fNeedLock, HB_BOOL fBackward, HB_BOOL fStay, PHB_ITEM * pParams, const char * szJoins );
 extern HB_EXPORT HB_ERRCODE LetoDbOrderCreate( LETOTABLE * pTable, const char * szBagName, const char * szTag, const char * szKey, unsigned int uiFlags, const char * szFor, const char * szWhile, unsigned long ulNext );
 extern HB_EXPORT HB_ERRCODE LetoDbOrderFocus( LETOTABLE * pTable, const char * szTagName, unsigned int uiOrder );
 extern HB_EXPORT HB_ERRCODE LetoDbSeek( LETOTABLE * pTable, const char * szKey, HB_USHORT uiKeyLen, HB_BOOL fSoftSeek, HB_BOOL fFindLast );
@@ -358,8 +364,8 @@ extern HB_EXPORT const char * LetoMgGetTime( LETOCONNECTION * pConnection );
 extern HB_EXPORT int LetoGetError( void );
 extern HB_EXPORT int LetoVarSet( LETOCONNECTION * pConnection, const char * szGroup, const char * szVar, char cType, const char * szValue, unsigned int uilLength, unsigned int uiFlags, char ** pRetValue );
 extern HB_EXPORT const char * LetoVarGet( LETOCONNECTION * pConnection, const char * szGroup, const char * szVar, unsigned long * pulLen );
-extern HB_EXPORT long LetoVarIncr( LETOCONNECTION * pConnection, const char * szGroup, const char * szVar, unsigned int uiFlags );
-extern HB_EXPORT long LetoVarDecr( LETOCONNECTION * pConnection, const char * szGroup, const char * szVar, unsigned int uiFlags );
+extern HB_EXPORT long LetoVarIncr( LETOCONNECTION * pConnection, const char * szGroup, const char * szVar, unsigned int uiFlags, const char * szIncrement );
+extern HB_EXPORT long LetoVarDecr( LETOCONNECTION * pConnection, const char * szGroup, const char * szVar, unsigned int uiFlags, const char * szDecrement );
 extern HB_EXPORT int LetoVarDel( LETOCONNECTION * pConnection, const char * szGroup, const char * szVar );
 extern HB_EXPORT const char * LetoVarGetList( LETOCONNECTION * pConnection, const char * szGroup, HB_LONG lMaxLen );
 
@@ -387,6 +393,9 @@ void leto_AddKeyToBuf( char * szData, const char * szKey, unsigned int uiKeyLen,
    extern HB_EXPORT void leto_clientlog( const char * sFile, int n, const char * s, ... );
 #endif
 
+#if ! defined( __LETO_C_API__ )
+   HB_BOOL Leto_VarExprTest( const char * szSrc, HB_BOOL fMemvarAllowed );
+#endif
 #if ! defined( __XHARBOUR__ ) && ! defined( __LETO_C_API__ )
    HB_BOOL Leto_VarExprCreate( LETOCONNECTION * pConnection, const char * szSrc, const HB_SIZE nSrcLen, char ** szDst, PHB_ITEM pArr );
    HB_ERRCODE Leto_VarExprSync( LETOCONNECTION * pConnection, PHB_ITEM pArr, HB_BOOL fReSync );

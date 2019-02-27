@@ -67,6 +67,7 @@ REQUEST DBFFPT
 REQUEST SIXCDX
 REQUEST DBFNSX
 REQUEST HB_MEMIO
+/* REQUEST SDF, Delim */
 
 #ifdef __BM
    REQUEST BMDBFNTX
@@ -75,24 +76,14 @@ REQUEST HB_MEMIO
    REQUEST BM_DBSEEKWILD
 #endif
 
+/* NULL as default GT */
+ANNOUNCE HB_GTSYS
+REQUEST HB_GT_NUL_DEFAULT
+
 #if ! defined( __PLATFORM__WINDOWS )
-   #ifdef __CONSOLE__
-      ANNOUNCE HB_GTSYS
-      REQUEST HB_GT_STD_DEFAULT
-   #else  /* __LINUX_DAEMON__ */
-      ANNOUNCE HB_GTSYS
-      REQUEST HB_GT_NUL_DEFAULT
-   #endif
    #define DEF_SEP      '/'
    #define DEF_CH_SEP   '\'
 #else
-   #ifdef __WIN_DAEMON__
-      ANNOUNCE HB_GTSYS
-      REQUEST HB_GT_GUI_DEFAULT
-   #else  /* __WIN_SERVICE__ */
-      ANNOUNCE HB_GTSYS
-      REQUEST HB_GT_NUL_DEFAULT
-   #endif
    #define DEF_SEP      '\'
    #define DEF_CH_SEP   '/'
 #endif
@@ -117,16 +108,19 @@ REQUEST HB_DATETIME, HB_DTOT, HB_TTOD, HB_NTOT, HB_TTON, HB_CTOT, HB_TTOC, ;
         HB_TTOS, HB_STOT, HB_HOUR, HB_MINUTE, HB_SEC, HB_VALTOEXP, HB_ZCOMPRESS
 REQUEST HB_HEXTONUM, HB_NUMTOHEX
 
-REQUEST hb_ATokens, hb_tokenGet, hb_tokenCount, hb_WildMatch, hb_DiskSpace, hb_strformat
-REQUEST FieldPos, FieldGet, FieldPut, Deleted, hb_FieldType, hb_FieldLen, hb_FieldDec
+REQUEST hb_ATokens, hb_tokenGet, hb_tokenCount, hb_DiskSpace, hb_strformat
+REQUEST FieldPos, FieldGet, FieldPut, hb_FieldType, hb_FieldLen, hb_FieldDec
+REQUEST hb_WildMatch, hb_AtX
+REQUEST Deleted, Found, Bof, Eof
+REQUEST hb_Hash, hb_Hset, hb_Hget, hb_Hdel
 
 REQUEST Array, AClone, ASize, ADel, AIns, AEval, AScan, ASize, ASort
 REQUEST hb_idleSleep, hb_milliSeconds
 
-REQUEST dbGoTop, dbGoBottom, dbSkip, dbGoto, dbSeek, Bof, Eof, dbEval, dbInfo, dbStruct
+REQUEST dbGoTop, dbGoBottom, dbSkip, dbGoto, dbSeek, dbEval, dbInfo, dbStruct
 REQUEST dbAppend, dbDelete, dbRecall, dbCommit, dbFilter, dbSetFilter
 #ifndef __HARBOUR30__
-   REQUEST hb_dbGetFilter, HB_WILDMATCHI
+   REQUEST hb_dbGetFilter, HB_WILDMATCHI, hb_RegexHas, hb_RegexLike
 #endif
 REQUEST ordKeyVal, dbOrderInfo, RDDinfo, OrdSetFocus, Alias, Select, dbSelectArea
 
@@ -137,11 +131,12 @@ REQUEST LETO_VARSET, LETO_VARGET, LETO_VARINCR, LETO_VARDECR, LETO_VARDEL, LETO_
 REQUEST LETO_VARGETCACHED, LETO_BVALUE, LETO_BSEARCH
 
 REQUEST LETO_GETUSTRUID, LETO_WUSLOG, LETO_GETAPPOPTIONS
-REQUEST LETO_SELECT, LETO_SELECTAREA, LETO_ALIAS, LETO_AREAID
+REQUEST LETO_SELECT, LETO_SELECTAREA, LETO_ALIAS, LETO_AREAID, LETO_FTS
 REQUEST LETO_RECLOCK, LETO_RECLOCKLIST, LETO_RECUNLOCK, LETO_TABLELOCK, LETO_TABLEUNLOCK
 REQUEST LETO_DBUSEAREA, LETO_DBCLOSEAREA, LETO_ORDLISTADD
 REQUEST LETO_DBCREATE, LETO_ORDCREATE
-REQUEST LETO_DBEVAL
+REQUEST LETO_DBEVAL, LETO_DBJOIN, LETO_DBTOTAL, LETO_DBLOCATE, LETO_DBCONTINUE
+REQUEST __dbTotal
 
 REQUEST LETO_IDLESLEEP
 REQUEST LETO_UDFMUSTQUIT
@@ -199,17 +194,10 @@ PROCEDURE Main( cCommand, cData )
       IF leto_SendMessage( oApp:nPort, LETOCMD_stop, oApp:cAddr )
          IF oApp:nDebugMode > 0
             WrLog( "Have send STOP to server at port " + ALLTRIM( STR( oApp:nPort ) ) + " , should soon go down ..." )
-#if defined( __CONSOLE__ ) || defined( __WIN_DAEMON__ )
-            ? "Send SToP to server at port " + ALLTRIM( STR( oApp:nPort ) + " ..."  )
-#endif
          ENDIF
       ELSE
          WrLog( "Can't STOP the server at port " + ALLTRIM( STR( oApp:nPort ) ) + " ( not started ? )" )
-#if defined( __CONSOLE__ ) || defined( __WIN_DAEMON__ )
-         ? "Can't STOP the server at port " + ALLTRIM( STR( oApp:nPort ) ) + " ( not started? )"
-#endif
       ENDIF
-      RETURN
 
    ELSEIF cCommand != NIL .AND. Left( Lower( cCommand ), 6 ) == "reload"
 
@@ -227,42 +215,9 @@ PROCEDURE Main( cCommand, cData )
       oApp := HApp():New()
       IF ! leto_SendMessage( oApp:nPort, LETOCMD_udf_rel, oApp:cAddr, cData )
          WrLog( "Can't reload letoudf.hrb at port " + ALLTRIM( STR( oApp:nPort ) ) )
-#if defined( __CONSOLE__ ) || defined( __WIN_DAEMON__ )
-         ? "Can't reload letoudf.hrb at port " + ALLTRIM( STR( oApp:nPort ) )
-#endif
       ENDIF
-      RETURN
 
-   ELSE
-
-#ifdef __CONSOLE__
-
-      CLS
-      ? "Server up and listening ..."
-      ? "for shutdown call me again with param: stop"
-      IF cCommand != NIL .AND. Lower( cCommand ) == "config" .AND. ! EMPTY( cData )
-         cData := LOWER( cData )
-         IF .NOT. ".ini" $ cData
-            cData += ".ini"
-         ENDIF
-         s_cIniName := cData
-      ENDIF
-      StartServer()
-
-#endif
-
-#ifdef __WIN_DAEMON__
-
-      IF cCommand != NIL .AND. Lower( cCommand ) == "config" .AND. ! EMPTY( cData )
-         cData := LOWER( cData )
-         IF .NOT. ".ini" $ cData
-            cData += ".ini"
-         ENDIF
-         s_cIniName := cData
-      ENDIF
-      StartServer()
-
-#endif
+   ELSE  /* start the server */
 
 #ifdef __WIN_SERVICE__
 
@@ -299,9 +254,7 @@ PROCEDURE Main( cCommand, cData )
          ErrorLevel( 1 )
       ENDIF
 
-#endif
-
-#ifdef __LINUX_DAEMON__
+#else
 
       IF cCommand != NIL .AND. Lower( cCommand ) == "config" .AND. ! EMPTY( cData )
          cData := LOWER( cData )
@@ -310,6 +263,9 @@ PROCEDURE Main( cCommand, cData )
          ENDIF
          s_cIniName := cData
       ENDIF
+
+   #ifdef __LINUX_DAEMON__
+
       oApp := HApp():New()
       IF ! leto_Daemon( oApp:nSUserID, oApp:nSGroupID, oApp:cSUser )
          WrLog( "Error: server can't become a daemon" )
@@ -317,6 +273,12 @@ PROCEDURE Main( cCommand, cData )
       ELSE
          StartServer()
       ENDIF
+
+   #else  /* __CONSOLE__ || __WIN_DAEMON__ */
+
+      StartServer()
+
+   #endif
 
 #endif
 
@@ -332,9 +294,6 @@ PROCEDURE StartServer()
    IF ! Empty( oApp:DataPath )
       IF ! hb_DirExists( oApp:DataPath )
          WrLog( "LetoDBf Server: DataPath '" + oApp:DataPath + "' does not exists .." )
-#if defined( __CONSOLE__ ) || defined( __WIN_DAEMON__ )
-         ? "LetoDBf Server: DataPath '" + oApp:DataPath + "' does not exists .."
-#endif
          ErrorLevel( 2 )
          RETURN
       ENDIF
@@ -353,13 +312,10 @@ PROCEDURE StartServer()
    ENDIF
    leto_InitSet()
    leto_HrbLoad()
-   leto_CreateData( oApp:cAddr, oApp:nPort, oApp:cAddrSpace )
+   leto_CreateData( oApp:cAddr, oApp:nPort, oApp:cAddrSpace, oApp:cServer )
 
    IF ! leto_Server( oApp:nPort, oApp:cAddr, oApp:nTimeOut, oApp:nZombieCheck, oApp:cBCService, oApp:cBCInterface, oApp:nBCPort )
       WrLog( "Socket error " + hb_socketErrorString( hb_socketGetError() ) )
-#if defined( __CONSOLE__ ) || defined( __WIN_DAEMON__ )
-      ? "Socket error starting LetoDBf ..."
-#endif
       ErrorLevel( 1 )
    ELSE
       WrLog( "Server at port " + ALLTRIM( STR( oApp:nPort ) ) + " have shutdown." )
@@ -447,6 +403,7 @@ EXIT PROCEDURE EXITP
 
 CLASS HApp
 
+   DATA cServer       INIT NIL
    DATA cAddr         INIT NIL
    DATA nPort         INIT 2812
    DATA nTimeOut      INIT -1
@@ -455,8 +412,8 @@ CLASS HApp
    DATA lLower        INIT .F.
    DATA lFileFunc     INIT .F.
    DATA lAnyExt       INIT .F.
-   DATA lShare        INIT .F.
-   DATA lNoSaveWA     INIT .F.
+   DATA lShare        INIT .T.
+   DATA lNoSaveWA     INIT .T.
    DATA nDriver       INIT 0
    DATA nBigLock      INIT 0
    DATA lPass4M       INIT .F.
@@ -521,6 +478,9 @@ METHOD New() CLASS HApp
                cValue := aIni[ i, 2, j, 2 ]
 
                SWITCH aIni[ i, 2, j, 1 ]
+               CASE "SERVER"
+                  ::cServer := cValue
+                  EXIT
                CASE "PORT"
                   nTmp := INT( Val( cValue ) )
                   IF nTmp >= 1024

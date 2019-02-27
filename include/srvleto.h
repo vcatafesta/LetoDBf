@@ -181,7 +181,7 @@ typedef struct
    HB_BOOL           bShared;                  /* TRUE = non-exclusive opened */
    HB_BOOL           bReadonly;                /* TRUE = not write- lock- able */
    HB_BOOL           bMemIO;                   /* is this a HbMemIO table = special handling */
-   HB_BOOL           bWhoCares;
+   HB_BOOL           bTemporary;               /* is this a named/ unnamed temporary table */
    HB_BYTE *         szTable;                  /* may include leading [back]slash, name of table */
    char              szLetoAlias[ HB_RDD_MAX_ALIAS_LEN + 1 ];  /* server internal alias: 7 + 1 or No_save_WA: 63 + 1 */
    HB_U32            uiCrc;                    /* hash value for szTable speed search */
@@ -242,7 +242,7 @@ typedef struct
    char *            szDateFormat;
    unsigned int      uiEpoch;
    HB_BOOL           bDeleted;                /* value to spare unnecessary leto_setSetDeleted() calls */
-   unsigned char     szAccess[ 2 ];
+   char              szAccess[ 2 ];
    char              cDopcode[ LETO_DOPCODE_LEN + 1 ];   /* random bytes > 0 flexible mixed into LETO_PASSWORD */
    HB_BOOL           bLastAct;                /* temporary value, internal used as replace for void return value */
    HB_I64            llLastAct;               /* seconds ago of last activity */
@@ -262,11 +262,13 @@ typedef struct
    char *            szHbError;               /* ":genCode-subCode-osCode-flags['\t'filename]" */
    HB_BYTE *         pBufCrypt;
    int               iZipRecord;              /* zlib compress level default -1 = off, 0 - 9 */
-   HB_BOOL           bZipCrypt;               /* encryption ON for LZ4 network traffic */
    HB_ULONG          ulBufCryptLen;
+   HB_BOOL           bZipCrypt;               /* encryption ON for LZ4 network traffic */
+   HB_BOOL           bDbEvalCompat;           /* enable scope to REST if WHILE/NEXT given */
    HB_BOOL           bBufKeyNo;
    HB_BOOL           bBufKeyCount;
    int               iPort;
+   int               iLockTimeOut;            /* used for RDDI_AUTOLOCK; value >= 0; 0 = none ms */
    HB_FHANDLE        hSockPipe[ 2 ];          /* the magic pipe */
    HB_BOOL           bCloseConnection;        /* connection will be closed, e.g. after wrong login */
    HB_BOOL           bBeQuiet;                /* disable network answer for request; used by UDF functions */

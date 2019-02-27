@@ -374,7 +374,7 @@ static void leto_var_delgroup( PUSERSTRU pUStru, LETO_VARGROUPS * pGroup )
 }
 
 /* need HB_GC_LOCKV() */
-static LETO_VAR * leto_var_find( const char * pVarGroup, const char * pVar, LETO_VARGROUPS ** ppGroup, HB_USHORT * puiItem )
+static LETO_VAR * leto_var_find( const char * pVarGroup, const char * pVar, LETO_VARGROUPS ** ppGroup, HB_USHORT * puiItem, int iUser )
 {
    LETO_VARGROUPS * pGroup;
    LETO_VAR *       pItem = NULL, * pItemTmp;
@@ -393,7 +393,7 @@ static LETO_VAR * leto_var_find( const char * pVarGroup, const char * pVar, LETO
                for( uiItem = 0, ui = 0; uiItem < pGroup->uiAlloc; uiItem++ )
                {
                   pItemTmp = pGroup->pItems + uiItem;
-                  if( pItemTmp->szName )
+                  if( pItemTmp->szName && ( ! pItemTmp->uiUser || pItemTmp->uiUser == ( HB_USHORT ) iUser ) )
                   {
                      if( ! leto_stricmp( pVar, pItemTmp->szName ) )
                      {
@@ -460,7 +460,7 @@ void leto_Variables( PUSERSTRU pUStru, char * szData )
       HB_GC_LOCKV();
 
       if( *pVarGroup )
-         pItem = leto_var_find( pVarGroup, pVar, &pGroup, &uiItem );
+         pItem = leto_var_find( pVarGroup, pVar, &pGroup, &uiItem, pUStru->iUserStru );
       else
       {
          pItem = NULL;
@@ -560,6 +560,7 @@ void leto_Variables( PUSERSTRU pUStru, char * szData )
          HB_BOOL fInc = ( *szData == LETOSUB_inc );
          char    cFlag1 = *( pp3 + 1 );
          char    cFlag2 = *( pp3 + 2 );
+         double  dIncrement = *( pp3 + 4 ) ? atof( pp3 + 4 ) : 1.0;
 
          if( nParam < 4 || ! *pVarGroup || ! *pVar || *pp3 != '2' || cFlag1 < ' ' )
             leto_SendAnswer( pUStru, szErr2, 4 );
@@ -572,15 +573,22 @@ void leto_Variables( PUSERSTRU pUStru, char * szData )
                pItem = leto_var_create( pUStru, pGroup, pVarGroup, pVar, cFlag1 );
                if( pItem )
                {
+                  const char * ptr2 = strchr( pp3 + 4, '.' );
+
                   pItem->type = LETOVAR_NUM;
-                  pItem->item.asLong.value = 0;
+                  if( ! ptr2 )
+                     pItem->item.asLong.value = 0;
+                  else
+                  {
+                     pItem->item.asDouble.value = 0.0;
+                     pItem->item.asDouble.length = strlen( pp3 + 4 ) - 1;
+                     pItem->item.asDouble.decimals = pItem->item.asDouble.length - ( ptr2 - ( pp3 + 4 ) + 1 ) ;
+                  }
                }
             }
             if( ! pItem )
                leto_SendAnswer( pUStru, szErr3, 4 );
             else if( pItem->type != LETOVAR_NUM )
-               leto_SendAnswer( pUStru, szErr4, 4 );
-            else if( pItem->item.asDouble.length )
                leto_SendAnswer( pUStru, szErr4, 4 );
             else if( leto_var_accessdeny( pUStru, pItem, LETO_VDENYWR ) )
                leto_SendAnswer( pUStru, szErrAcc, 4 );
@@ -595,10 +603,20 @@ void leto_Variables( PUSERSTRU pUStru, char * szData )
                      leto_SendAnswer( pUStru, szErr1, 4 );
                }
 
-               if( fInc )
-                  pItem->item.asLong.value++;
+               if( ! pItem->item.asDouble.length )
+               {
+                  if( fInc )
+                     pItem->item.asLong.value += ( long ) dIncrement;
+                  else
+                     pItem->item.asLong.value -= ( long ) dIncrement;
+               }
                else
-                  pItem->item.asLong.value--;
+               {
+                  if( fInc )
+                     pItem->item.asDouble.value += dIncrement;
+                  else
+                     pItem->item.asDouble.value -= dIncrement;
+               }
 
                if( ! ( cFlag2 & LETO_VPREVIOUS ) )
                {
@@ -893,7 +911,7 @@ HB_FUNC( LETO_VARGET )
       LETO_VARGROUPS * pGroup = NULL;
       HB_USHORT        uiItem = 0;
 
-      pItem = leto_var_find( pVarGroup, pVar, &pGroup, &uiItem );
+      pItem = leto_var_find( pVarGroup, pVar, &pGroup, &uiItem, pUStru->iUserStru );
       HB_SYMBOL_UNUSED( pGroup );
    }
    else
@@ -901,6 +919,37 @@ HB_FUNC( LETO_VARGET )
 
    if( pItem && ! leto_var_accessdeny( pUStru, pItem, LETO_VDENYRD ) )
       hb_itemReturnRelease( leto_var_ret( pItem ) );
+   else
+      hb_ret();
+
+   HB_GC_UNLOCKV();
+}
+
+/* leto_udf() */
+HB_FUNC( LETO_VARGETSAVE )
+{
+   PUSERSTRU    pUStru = letoGetsUStru();
+   const char * pVarGroup = hb_parclen( 1 ) ? hb_parc( 1 ) : NULL;
+   const char * pVar = hb_parclen( 2 ) ? hb_parc( 2 ) : NULL;
+   LETO_VAR *   pItem;
+
+   HB_GC_LOCKV();
+
+   if( pVarGroup && pVar )
+   {
+      LETO_VARGROUPS * pGroup = NULL;
+      HB_USHORT        uiItem = 0;
+
+      pItem = leto_var_find( pVarGroup, pVar, &pGroup, &uiItem, pUStru->iUserStru );
+      HB_SYMBOL_UNUSED( pGroup );
+   }
+   else
+      pItem = NULL;
+
+   if( pItem && ! leto_var_accessdeny( pUStru, pItem, LETO_VDENYRD ) )
+      hb_itemReturnRelease( leto_var_ret( pItem ) );
+   else if( hb_param( 3, HB_IT_ANY ) )
+      hb_itemMove( hb_stackReturnItem(), hb_param( 3, HB_IT_ANY ) );
    else
       hb_ret();
 
@@ -923,7 +972,7 @@ HB_FUNC( LETO_VARSET )
 
       HB_GC_LOCKV();
 
-      pItem = leto_var_find( pVarGroup, pVar, &pGroup, &uiItem );
+      pItem = leto_var_find( pVarGroup, pVar, &pGroup, &uiItem, pUStru->iUserStru );
       if( ! pItem )
          pItem = leto_var_create( pUStru, pGroup, pVarGroup, pVar, cFlag1 );
       if( pItem && ! leto_var_accessdeny( pUStru, pItem, LETO_VDENYWR + LETO_VCREAT ) )
@@ -996,19 +1045,48 @@ static void leto_var_incdec( HB_BOOL fInc )
       LETO_VARGROUPS * pGroup = NULL;
       HB_USHORT        uiItem = 0;
       char             cFlag1 = HB_ISNUM( 3 ) ? ( char ) hb_parni( 3 ) : 0;
+      double           dIncrement = hb_parnd( 4 );
+
+      if( ! HB_ISNUM( 4 ) )
+         dIncrement = 1.0;
 
       HB_GC_LOCKV();
 
-      pItem = leto_var_find( pVarGroup, pVar, &pGroup, &uiItem );
+      pItem = leto_var_find( pVarGroup, pVar, &pGroup, &uiItem, pUStru->iUserStru );
       if( ! pItem && ( cFlag1 & LETO_VCREAT ) )
-         pItem = leto_var_create( pUStru, pGroup, pVarGroup, pVar, cFlag1 );
-      if( pItem && pItem->type == LETOVAR_NUM && ! pItem->item.asDouble.length &&
-          ! leto_var_accessdeny( pUStru, pItem, LETO_VDENYWR ) )
       {
-         if( fInc )
-            pItem->item.asLong.value++;
+         pItem = leto_var_create( pUStru, pGroup, pVarGroup, pVar, cFlag1 );
+         if( pItem )
+         {
+            pItem->type = LETOVAR_NUM;
+            if( ( HB_IS_INTEGER( hb_param( 4, HB_IT_ANY ) ) || HB_IS_LONG( hb_param( 4, HB_IT_ANY ) ) ) )
+               pItem->item.asLong.value = hb_parnl( 4 );
+            else
+            {
+               pItem->item.asDouble.value = hb_parnd( 4 );
+               hb_itemGetNLen( hb_param( 4, HB_IT_NUMERIC ), &pItem->item.asDouble.length,
+                                                             &pItem->item.asDouble.decimals );
+            }
+            leto_SetVarCache( pItem );
+            hb_itemReturnRelease( leto_var_ret( pItem ) );
+         }
+      }
+      else if( pItem && pItem->type == LETOVAR_NUM && ! leto_var_accessdeny( pUStru, pItem, LETO_VDENYWR ) )
+      {
+         if( ! pItem->item.asDouble.length )
+         {
+            if( fInc )
+               pItem->item.asLong.value += ( long ) dIncrement;
+            else
+               pItem->item.asLong.value -= ( long ) dIncrement;
+         }
          else
-            pItem->item.asLong.value--;
+         {
+            if( fInc )
+               pItem->item.asDouble.value += dIncrement;
+            else
+               pItem->item.asDouble.value -= dIncrement;
+         }
          leto_SetVarCache( pItem );
          hb_itemReturnRelease( leto_var_ret( pItem ) );
       }
@@ -1051,7 +1129,7 @@ HB_FUNC( LETO_VARDEL )
       HB_GC_LOCKV();
 
       if( pVar )
-         pItem = leto_var_find( pVarGroup, pVar, &pGroup, &uiItem );
+         pItem = leto_var_find( pVarGroup, pVar, &pGroup, &uiItem, pUStru->iUserStru );
       if( pItem )
       {
          leto_var_del( pUStru, pGroup, uiItem );
@@ -1087,7 +1165,7 @@ HB_FUNC( LETO_VARGETLIST )
 
       HB_GC_LOCKV();
 
-      leto_var_find( pVarGroup, "", &pGroup, &uiItem );
+      leto_var_find( pVarGroup, "", &pGroup, &uiItem, pUStru->iUserStru );
       if( pGroup )
       {
          LETO_VAR * pItem;

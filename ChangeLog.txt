@@ -2,6 +2,438 @@
      * Change, ! Fix, % Optimization, + Addition, - Removal, ; Comment
 */
 
+2018-09-20 11:55 UTC+0100 Rolf 'elch' Beckmann (elchs users.noreply.github.com)
+  * source/client/leto1.c
+    ! fix in letoSort()/ letoTrans(): .lpstr[For|While] is a PHB_ITEM!
+    ! not removing in letoSetRel() the relation if not optimized;
+    ! fix in letoSetFilter() optimizing logic ( set CB only if ! optimized );
+      pre-test at client optimize-able expression if _SET_FORCEOPT is false.
+
+2018-09-15 22:42 UTC+0100 Rolf 'elch' Beckmann (elchs users.noreply.github.com)
+  * include/letocl.h
+  * include/leto_std.ch
+  * source/client/leto1.c
+  * source/client/letomgmn.c
+    * change/ extend optimizing logics: new Leto_VarExprTest() to test for
+      optimize-able [ if FORCEOPT true ] MEMVAR and non-optimize-able LOCAL,
+      done at client side before finally testing the CB at server
+    * use in leto_std.ch arrays with compile-time block and string expression
+      for various commands, whereas the block is used if not optimized
+    * add in leto_PutTransInfo() logics for automatic optimization,
+      return by ref the array with used Leto_Var() for MEMVARs
+    * new leto_ChkTransInfo(): try create block from string if not given,
+      dealloc these in new leto_CleanTransInfo()
+    + add PRG Leto_VarGetSave() with third param as default value,
+      used if variable does not exist and else a NIL would be returned
+    + new help functions to handle block, string or array {block, string};
+      leto_param() for PRG stack, leto_paramtype() for C-level params,
+      and return appropiate item type or NULL [ likely hb_param() ]
+    ! fix length of buffer in LETO_USER[ADD|PASSWD]
+
+  * source/server/letofunc.c
+  * source/server/letovars.c
+    ! fix LETO_VOWN variable type to be really connection wide private [own],
+      formerly only write access was rejected -- now each connection will
+      use an 'own' variable even when group/name is used by another client;
+      [ done by adding pUStru-ID to leto_var_find() ]
+
+  * include/srvleto.h
+  * source/server/leto_2.c
+  * source/server/letoacc.c
+    ! some fixes in some leto_acc_*() functions, incl. buffer sizes
+    * use server IP-address ( not given: 127.0.0.1 ) to determine if client
+      application is local to server; such can log into even a locked server
+      for example to shutdown
+
+  * utils/manager/console.prg
+    ! missing RTIM() of password in GetUser(), shorten it to max 32 char,
+      improve rights input and verification
+    * exec in Administrate() after each change a leto_userflush()
+
+2018-09-07 19:37 UTC+0100 Rolf 'elch' Beckmann (elchs users.noreply.github.com)
+  * source/client/leto1.c
+    * simplifying PRG param usage in LETO_DBEVAL, and make them replace-able
+      by optimized FOR/WHILE expression with MEMVARs ( if FORCEOPT true )
+
+  * source/client/letomgmn.c
+    * check in Leto_MgID() for "iConnectSrv < 0" [ not "<=" ],
+      so its done only one initial time also for first connection == '0'.
+
+  * source/server/letofunc.c
+    ! fix server-side LETO_VAR[INC|DEC] in leto_var_incdec() and
+      client-side in leto_Variables():
+      assign '1' only in case if not given [de-]increment value,
+      plus remove an overlooked old limitation to integer values
+
+2018-09-06 13:53 UTC+0100 Rolf 'elch' Beckmann (elchs users.noreply.github.com)
+  * include/letocl.h
+  * include/rddleto.ch
+  * include/srvleto.h
+  * source/client/leto1.c
+  * source/client/letocl.c
+  * source/server/letofunc.c
+    + add RDDI_DBEVALCOMPAT for RddInfo ( boolean, default: TRUE ) to toggle
+      behaviour of DbEval(): given WHILE or NEXT starts with current record;
+      with setting FALSE only the REST param determines if to start at top
+
+2018-08-30 19:59 UTC+0100 Rolf 'elch' Beckmann (elchs users.noreply.github.com)
+  * source/server/letofunc.c
+    * use also the FOUND flag in Leto_DbLocate/Continue:
+      if 'false' after locating return recno '0' == EOF;
+      this should be helpful because there is no FOUND flag set at client
+
+2018-08-30 17:30 UTC+0100 Rolf 'elch' Beckmann (elchs users.noreply.github.com)
+  * include/leto_std.ch
+  * source/client/leto1.c
+  * source/server/letofunc.c
+    * extend Leto_DbEval() to use compile-time CB _or_ stringified block for
+      the FOR [ and WHILE ] expression.
+      Now these params can be given as CB, string or array: { CB, string },
+      where leto_std.ch use the array variant.
+      Pre-test the stringified block at server if valid boolean result to
+      decide if optimization is possible
+    - remove Leto_DbLocate() and RDD method letoLocate() from 2018-07-05:
+      a bad idea as Leto_DbEval() position is at first *in*valid record
+
+  * source/server/letofunc.c
+  * source/server/server.prg
+    + add Leto_DbLocate()/ Leto_DbContinue() as UDF functions at server;
+      both functions return the RecNo() after locating, afterwards
+      record must be jumped to with DbGoto() at client manually;
+      e.g.: DbGoto( Leto_Udf( "Leto_DbLocate", cFor[, cWhile, .. ] ) )
+    + requests for above two functions
+    * change defaults of lShare/ lNoSaveWA to most recommend mode
+
+2018-08-28 18:08 UTC+0100 Rolf 'elch' Beckmann (elchs users.noreply.github.com)
+  * source/client/leto1.c
+    * extend LETO_DBEVAL() 7th :lResultArr to possible given by reference,
+      then store returned result into
+    ! complete unfinished <USECURRENT> flag for index order creation,
+      move all dealloc of TAG into letocl.c, fix possible missing free of extra
+      info in leto_doFreeTable() -- THANKS Mauricio for note
+
+  * source/client/letocl.c
+    * use a given password ( without given user ) as replace for hardcoded
+      PW during initial connection establish
+
+  * source/common/common.prg
+    * ALL!trim (not only RTrim) also the keys in server config .ini
+
+  * source/server/letofunc.c
+    ! fix compiler warning, Thanks asimoesluz
+
+2018-07-17 22:42 UTC+0100 Rolf 'elch' Beckmann (elchs users.noreply.github.com)
+  * include/funcleto.h
+    + add LETO_MYPASSWORD as command line define to replace LETO_PASSWORD
+      ( -cflag=-DLETO_MYPASSWORD=password )
+
+  * source/client/leto1.c
+    ! letoOrderListFocus() possible stack corruption when copy shortened!
+      upper string to pOrderInfo->itmOrder [hb_param(1)]; Thanks, Valgrind
+    ! missing WA FOUND flag for new server-side Leto_Locate()
+
+  * source/client/letocl.c
+    * LetoDbOrderFocus() return SUCCESS also for order '0' [recno]
+
+  * source/client/letomgmn.c
+    * leto_udp() to return NIL (instead FALSE) in case of expression error;
+      so a CB with boolean return value can be tested if valid at server:
+      Leto_Udf( "{|| created to fail }" ) --> NIL
+
+  * source/server/letofunc.c
+    * leto_AliasTranslate() to not process more as given length of origin
+    * fix infinite loop in case of malformed JOINs in leto_dbEvalJoinAdd()
+
+  * Readme.txt
+
+2018-07-05 23:13 UTC+0100 Rolf 'elch' Beckmann (elchs users.noreply.github.com)
+  * include/letocl.h
+  * source/client/leto1.c
+  * source/client/letocl.c
+  * source/server/letofunc.c
+    + adding SQL JOIN types ( 'set theory' ) to Leto_DbEval()
+      ;test phase!, it have to prove its working,
+       use this extension! to Leto_DbEval() still not for production usage
+      ;ToDo: explain how to test ;-)
+    + add Leto_DbLocate() and RDD method letoLocate()
+      ;for optimized WA it calls a LetoDbEval() to LOCATE at server-side
+      ;by intention no PP-rule for LOCATE command in leto_std.ch
+    ! fix for last update: logic to preserve the skipbbuffer was wrong in
+      LetoDbEval(); also hardened to handle some NULL pointers
+
+2018-06-29 16:42 UTC+0100 Rolf 'elch' Beckmann (elchs users.noreply.github.com)
+  * include/cmdleto.h
+  * include/letocl.h
+  * source/client/leto1.c
+  * source/client/letocl.c
+  * source/server/leto_2.c
+  * source/server/letofunc.c
+    + implement Leto_DbEval() into the command set
+
+  * source/client/leto1.c
+    ! pacify a MsVc warning - Thanks Theo for note.
+
+2018-06-28 16:32 UTC+0100 Rolf 'elch' Beckmann (elchs users.noreply.github.com)
+  * source/client/leto1.c
+  * source/server/letofunc.c
+    ! Leto_DbEval(), <lNeedLock>: positon at first invalid record afterwards
+
+2018-06-28 12:00 UTC+0100 Rolf 'elch' Beckmann (elchs users.noreply.github.com)
+  * source/client/leto1.c
+    * Leto_DbEval(): if <lNeedLock> = true and fOptimized,
+      refresh also all WA found in the expression as ALIAS name
+
+2018-06-27 18:00 UTC+0100 Rolf 'elch' Beckmann (elchs users.noreply.github.com)
+  * include/rddleto.ch
+  * source/client/leto1.c
+    + RDDI_CLEARBUFFER for RDDInfo: discard skip-buffer of all WA and
+      refresh record-buffer with a skip( 0 )
+    * add to refresh record buffer with a skip( 0 ) in DBI_CLEARBUFFER
+    + leto_RelOptimized() ..
+    ! .. for check all relationed WA are optimized in filter and relations;
+      used in Leto_DbEval()
+
+2018-06-26 19:50 UTC+0100 Rolf 'elch' Beckmann (elchs users.noreply.github.com)
+  * source/client/leto1.c
+    + add PRG functions LETO- _TABLELOCK, _TABLEUNLOCK for client side;
+    * universalize LETO- _RECLOCK, _RECUNLOCK to handle also non-LETO WA
+    + leto_LockValidate()
+      automatic replace in Leto_DBEval() expression Harbour lock functions
+      with LETO variants -- validate made lock is unlocked:
+      rlock()/ dbrlock() => Leto_RecLock(); dbrunlock() => Leto_RecUnlock()
+      flock() => Leto_TableLock(); dbunlock() => Leto_TableUnlock()
+
+  * source/client/rddsys.prg
+    * add REQUESTs for LETO- _TABLELOCK, _TABLEUNLOCK
+
+  * Readme.txt
+    * a straying bracket :-(
+
+2018-06-25 22:42 UTC+0100 Rolf 'elch' Beckmann (elchs users.noreply.github.com)
+  * source/client/leto1.c
+  * source/server/letofunc.c
+    ! don't set <nNext> value -1, esp. not for non-LETO RDD method,
+      instead check if param is given numeric -- similar for <nRec>
+    * accept and go-to any given <nRecord> in leto_dbEval()
+    * simplify two 'if' into one
+    * tiny MsVc warning, as dbLockInfo.fResult is a HB_USHORT
+
+2018-06-25 01:11 UTC+0100 Rolf 'elch' Beckmann (elchs users.noreply.github.com)
+  * source/client/leto1.c
+  * source/server/letofunc.c
+    ! remove test, if <cbFor> and <cbWhile> return a boolean value:
+      it would need to transmit 2 numeric params as in real usage,
+      and may distract a logic in the CB, if its called the first time;
+      so blocks can even return numeric values, analysed by hb_itemGetL()
+    ! (hopefully) fixed GoTop behaviour with <cbWhile>
+
+2018-06-24 18:58 UTC+0100 Rolf 'elch' Beckmann (elchs users.noreply.github.com)
+  * include/leto_std.ch
+    + add optional 'INTO variable' option for delete and recall commands,
+      will contain number of records processed.
+    + add translate DbEval() => Leto_DBEval()
+
+  * source/client/rddsys.prg
+  * source/client/leto1.c
+    + RDDI_LOCKRETRY as recommended constant for LetoDBf RDDI_LOCKTIMEOUT
+    + add PRG functions LETO- _RECLOCK, _RECUNLOCK for client side;
+      Leto_RecUnlock() return boolean if R-locked before
+      add REQUESTs for these ( as possible only literally used in source )
+  * source/server/letofunc.c
+    % make <nNext> starting at active record depending on <lRest>, likely
+      for <bWhile>: explicit given FALSE starts at table top (filter <bFor>)
+    - remove to convert 'stringified' params nNext, nRec, lRest ...
+
+  * source/server/letofunc.c
+    ! server side auto-locking in leto_dbEval() to follow letodb.ini option
+      Share_Tables; use server internal lock-functions instead 'real' locks
+    % try an initial F-lock in leto_DbEval() if given 10th param <lStay> is
+      given as non default: HB_FALSE
+    * return boolean in Leto_RecUnlock(), -TableUnlock() if locked before
+
+  * Readme.txt
+
+2018-06-22 10:42 UTC+0100 Rolf 'elch' Beckmann (elchs users.noreply.github.com)
+  * source/client/letocl.c
+  * source/server/letofunc.c
+    ! no DBGoTop() in letoEval()/ leto_dbEval() *if* given <while> condition
+      ; THANKS Mario for pointing at misbehaviour
+    ! check for <lNext> before above, start also at current record
+    ! fix an ALIAS problem in leto_FindAlias() for server mode No_Save_WA=0
+      when replacing universal 'field->' alias
+    + boolean 10th param to Leto_DbEval() to stay at last processed record or
+      goto back to the one when starting
+    * move handling to go back to record as before out of letoEval() into
+      Leto_DbEval(); then DbEval() can perform Harbour conform.
+      move leto_PutRec() from here into letoEval()
+
+2018-06-18 18:56 UTC+0100 Rolf 'elch' Beckmann (elchs users.noreply.github.com)
+  * include/funcleto.h
+  * include/leto_std.h
+  * source/client/leto1.c
+  * source/client/letocl.c
+    % if DbRUnlock( nRecno ) is active record to update, add unlock to update
+      like for DbUnlock()
+    ! leto_dbEval() in data change mode need to call RDD method FieldPut()
+      when executed at client, to set markers which fields to update;
+      PP fill into FieldPut('fieldname'), leto_DbEval() convert to fieldpos
+    + flag LETO_FLAG_UPD_ALL to update all non-extern stored fields
+    * send outstanding updated record before to start leto_dbeval()
+    * add numeric constant alternative to 2. param in Leto_DbDriver()
+
+  * source/client/rddsys.prg
+    * add function requests used in Leto_DbEval()
+
+  * source/server/letofunc.c
+    ! server mode No_Save_WA=0; ! NTX, AUTORDER == 0; then re-open production
+      or open another index bag: missing set order to first in bag
+      ; Thanks! to Theo for pointing bug for rare usage
+    % leto_dbEval() in lock-mode: inital try one F-lock, if fails R-locks
+
+2018-06-15 18:48 UTC+0100 Rolf 'elch' Beckmann (elchs users.noreply.github.com)
+  ; ( maybe rare used ) bug fixes ! -- refresh server and client for news:
+    # support named ( LETO extension ) and OS none-named temporary tables
+    # server-side executable ( by stingified codeblocks <for> and <while> )
+      'record processing commands' with new header file "leto_std.ch"
+    # transactions: ignore-to-unlock until commit' mode for easy integration
+      to existing source with 'unlocks'
+    # RDDI_AUTOLOCK in conjunction with a timeout value to get lock success,
+      used in leto_DbEval() for shared opened tables -- whereas leto_DbEval()
+      is fast server side query [opt. data change] into a sum or resultset!
+    # performance for sequence: Rlock(); change data; DbUnlock()
+      spares a network package ( 'unlock' send together with data update )
+
+  * letodb.hbc
+  + include/leto_std.h
+  * include/letocl.h
+  * include/rddleto.ch
+  * include/rddleto.h
+  * source/client/leto1.c
+    + new LETO_*:
+      _DBARRANGE, _DBSORT, _DBCOPY, _DBAPP, _DBJOIN, _TOTAL, _UPDATE
+      LetoDBf adapted/ optimized replicas of __db*() functions
+    * + prep up! LETO_DBEVAL() to act at server if ever possible,
+      to be a full replace for dbEval() *plus* LetoDBf extensions like
+      to give back result-sets, using Leto_Var*(), AUTOLOCKing, ...
+    * refine letoSort() and letoTrans() to use 'fOptimized' flag;
+      do not send non-optimzed query ( with 'for/while'-codeblocks ! ),
+      and instead execute it (must be) local at client.
+      With string expressions for the evil-block, the for/while' expression,
+      its tried as optimized at server -- if query then fails at server,
+      - a local var or function in it - its tried at client ( if here the
+        expressions are valid as a CB )
+    ; General aim is to let Leto_Db*() functions act at server-side,
+      very wanted for exactly case to 'filter' records at the bright! side.
+      HB core functions __db*() omit the string alternative,
+      and expressions are blockyfied in 'std.ch', so ...
+    * use new header file to pre-process Harbour __db*() commands
+      ( by stringify their params ) into Leto_db*() variants
+    * include new header 'leto_std.ch' in letodb.hbc
+    * refine leto_mkCodeBlock() used in above
+    + new LETO DBI_CHILDPARENT to check if a relation points to this WA
+    + use DBI_ISTEMPORARY to set new flag in WA; return HB_SUCCESS
+    + Leto_DbCreateTemp() to create 'temporary' tables, aka automatically
+      deleted when closed. Without given filename, a unique file in the
+      temporary OS path at server is created, else with given name relative
+      to the server datapath. [ "mem:/temptable" without path in RAM ]
+    + Leto_BeginTransaction( .T. ) [ given TRUE ]: not only all existing locks
+      are unlocked, but following R-F-unlocks ignored until transaction end.
+      This should it make easy to add transactions to existing source.
+    * LetoDbAppend() during transaction ever to use: fUnLockAll = .F.
+    + leto_Var[Decr|Incr](): optional increment amount as 4th param,
+      so nice to sum up a value with e.g. flag: LETO_VCREAT
+    + new RDDI_LOCKTIMEOUT, add RDDI_AUTOLOCK, changed Leto_SetLockTimeOut()
+      to set value also at server
+
+  * source/client/letomgmt.c
+    + new LETO_FTS( [ cSearch[, lCaseInsensitive, [ lNoMemos ] ] ] )
+      Full-Text-Search over all fields, default including also memofields
+
+  * source/client/letocl.c
+    ! more fix to 2017-06-09, LetoDbGoTo():
+      instead looking up the cache for recno() > reccount() [out of space],
+      ask the server for fresh data; ( sets in return also EOF/ BOF );
+      THANKS for hint by Leon; -- reset 'found' flag to false in any! case
+    ! fix data refresh: if DbRlock() not the active record,
+      and its data is cached in (still) valid skipbuffer
+    * minor add of field-types
+
+  * source/client/rddsys.prg
+    * link HB internal funtions needed in leto_std.ch
+
+  * include/srvleto.h
+  * source/server/letofunc.c
+  * source/server/server.prg
+    + LETO_FTS() Full-Text-Search *all* fields, well for filter expressions
+    ! fix to set from client a table trigger at server with DBI_TRIGGER
+      ; a global server trigger ever have precedence, then do not set
+    ! possibility to create temporary tables, deleted with closing them.
+      Likely a DbCreate() with lKeepOpen flag, ever in 'exclusive' mode.
+    * rework also server side part of leto_DbEdit(), and add same for
+    + leto_dbJoin(): accepts named/ unnamed temporary table
+    + new RDDI_LOCKTIMEOUT to query/ set a session iLockTimeOut,
+      used in conjunction with added RDDI_AUTOLOCK in e.g. Leto_DbEval()
+    * add a server name known to itself, existing config option 'SERVER'
+    * add missing REQUESTs for Leto_Var[Inc|Dec]
+
+  * source/server/letovars.c
+    * make leto_VarIncr()/ leto_VarDevr() work also with decimals
+    ! fix to create above from server side
+    + optional given amount to increment or decrement -- if not given: '1'
+
+  * tests/c_lang/test_dbf.c
+    * new temporary param for LetoDbCreateTable()
+
+  * tests/test_tr.prg
+    * clean up of code which went into rddleto library
+
+  * Readme.txt
+
+2018-05-14 19:18 UTC+0100 Rolf 'elch' Beckmann (elchs users.noreply.github.com)
+  * include/letocl.h
+    * move #define LETO_DEFAULT_TIMEOUT from letocl.c
+
+  * source/client/leto1.c
+    ! re-set WA flags [EOF/BOF/FOUND] in letoOrderCreate(),
+      e.g. clear an old EOF() flag -- bug-report by Itamar, THANKS !!
+    * remove a doubled, obsolete WA set-flag in letoOrderListAdd()
+    * clean up of function letoRddInfo():
+      centralize pConnection determination, dissolve leto_MemoExt() herein;
+      use connection pointer ( not ID ) as param for leto_MemoType() and
+      leto_MemoBlocksize()
+    * add experimental <iLockTimeOut> as optional 8th param of
+      LETO_RECONNECT() [ in ms, temporary used for lock restore ]
+
+  * source/client/letomgmn.c
+    * change default in LETO_CONNECT() to LETO_DEFAULT_TIMEOUT ( 120 s )
+      if timeout is given apply it also for an ready established connection;
+      where nTimeOut '< 0' == -1 == infinite, '0' == LETO_DEFAULT_TIMEOUT
+    * verify in Leto_VarExprCreate() a not aliased ( M-> or MEMVAR-> )
+      memvar is not *also* a fieldname in active LETO workarea;
+      take care of such memvar prefix to be removed in result
+
+  * source/client/letocl.c
+    ! fix compile time LETO_PASSWORD is verified for new connection
+      in leto_RecvFirst() --> LETO_ERR_ACCESS
+    * dissolve leto_NetName() into LetoConnectionOpen()
+    * leto_RecvFirst():
+      move a section out of LetoConnectionOpen() which belongs here;
+      use initial timeout <default>: 6 s to establish a new connection
+      ( else given_value in range: 100  <=> LETO_DEFAULT_TIMEOUT/10 [12 s] )
+
+  * source/server/leto_2.c
+  * source/server/letofunc.c
+    * delete existing log earlier, just after connect ( leto_wUsLogDelete() )
+      to possible log the 'intro' greating string for highest debug levels
+    * increase a buffer
+
+  * source/server/server.prg
+  * Readme.txt
+    * change default GT for all modes to: HB_GT_NUL, and remove ( mostly
+      failure ) feedback as gone with immediate closing window
+      ; this will not prevent a black-screen window created by Windows OS;
+        to avoid use 'start /B' or similar ( see Readme.txt: 3.1 )
+
 2018-03-14 18:14 UTC+0100 Rolf 'elch' Beckmann (elchs users.noreply.github.com)
   * source/client/leto1.c
     * call SELF_CLOSE() for failed SUPER_CREATE(), else apply WA flags

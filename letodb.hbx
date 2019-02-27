@@ -1,0 +1,156 @@
+/* --------------------------------------------------------------------
+ * NOTE: You can add manual override which functions to include or
+ *       exclude from automatically generated EXTERNAL/DYNAMIC list.
+ *          Syntax: // HB_FUNC_INCLUDE <func>
+ *                  // HB_FUNC_EXCLUDE <func>
+ */
+
+/* --------------------------------------------------------------------
+ * WARNING: Automatically generated code below. DO NOT EDIT! (except casing)
+ *          Regenerate using hbmk2 '-hbx=' option.
+ */
+
+#ifndef __HBEXTERN_CH__LETODB__
+#define __HBEXTERN_CH__LETODB__
+
+#if defined( __HBEXTREQ__ ) .OR. defined( __HBEXTERN__LETODB__ANNOUNCE )
+   ANNOUNCE __HBEXTERN__LETODB__
+#endif
+
+#if defined( __HBEXTREQ__ ) .OR. defined( __HBEXTERN__LETODB__REQUEST )
+   #command DYNAMIC <fncs,...> => EXTERNAL <fncs>
+#endif
+
+DYNAMIC leto
+DYNAMIC letordd
+DYNAMIC leto_addcdptranslate
+DYNAMIC leto_begintransaction
+DYNAMIC leto_broadcastip
+DYNAMIC leto_bsearch
+DYNAMIC leto_bvalue
+DYNAMIC leto_closeall
+DYNAMIC leto_commit
+DYNAMIC leto_committransaction
+DYNAMIC leto_connect
+DYNAMIC leto_connect_err
+DYNAMIC leto_cpucores
+DYNAMIC leto_cpuload
+DYNAMIC leto_cryptreset
+DYNAMIC leto_dbapp
+DYNAMIC leto_dbarrange
+DYNAMIC leto_dbcopy
+DYNAMIC leto_dbcreatetemp
+DYNAMIC leto_dbdriver
+DYNAMIC leto_dbeval
+DYNAMIC leto_dbevaltest
+DYNAMIC leto_dbjoin
+DYNAMIC leto_dbsort
+DYNAMIC leto_dbtotal
+DYNAMIC leto_dbtrans
+DYNAMIC leto_dbupdate
+DYNAMIC leto_decrypt
+DYNAMIC leto_detect
+DYNAMIC leto_directory
+DYNAMIC leto_direxist
+DYNAMIC leto_dirmake
+DYNAMIC leto_dirremove
+DYNAMIC leto_disconnect
+DYNAMIC leto_encrypt
+DYNAMIC leto_errorcode
+DYNAMIC leto_fclose
+DYNAMIC leto_fcopy
+DYNAMIC leto_fcopyfromsrv
+DYNAMIC leto_fcopytosrv
+DYNAMIC leto_fcreate
+DYNAMIC leto_feof
+DYNAMIC leto_ferase
+DYNAMIC leto_ferror
+DYNAMIC leto_file
+DYNAMIC leto_fileattr
+DYNAMIC leto_fileread
+DYNAMIC leto_filesize
+DYNAMIC leto_filewrite
+DYNAMIC leto_fopen
+DYNAMIC leto_fread
+DYNAMIC leto_freadlen
+DYNAMIC leto_freadstr
+DYNAMIC leto_frename
+DYNAMIC leto_fseek
+DYNAMIC leto_fts
+DYNAMIC leto_fwrite
+DYNAMIC leto_getcurrentconnection
+DYNAMIC leto_getlocalip
+DYNAMIC leto_getservermode
+DYNAMIC leto_getserverversion
+DYNAMIC leto_groupby
+DYNAMIC leto_hash
+DYNAMIC leto_hextostr
+DYNAMIC leto_intransaction
+DYNAMIC leto_iserroptim
+DYNAMIC leto_isfltoptim
+DYNAMIC leto_isvalidip4
+DYNAMIC leto_lockconn
+DYNAMIC leto_locklock
+DYNAMIC leto_lookerror
+DYNAMIC leto_makedir
+DYNAMIC leto_memoisempty
+DYNAMIC leto_memoread
+DYNAMIC leto_memowrite
+DYNAMIC leto_mggetindex
+DYNAMIC leto_mggetinfo
+DYNAMIC leto_mggetlocks
+DYNAMIC leto_mggettables
+DYNAMIC leto_mggettime
+DYNAMIC leto_mggetusers
+DYNAMIC leto_mgid
+DYNAMIC leto_mgkill
+DYNAMIC leto_mglog
+DYNAMIC leto_mgsysinfo
+DYNAMIC leto_millisec
+DYNAMIC leto_ping
+DYNAMIC leto_reclock
+DYNAMIC leto_reconnect
+DYNAMIC leto_recunlock
+DYNAMIC leto_rollback
+DYNAMIC leto_rpc
+DYNAMIC leto_set
+DYNAMIC leto_setcurrentconnection
+DYNAMIC leto_setfastappend
+DYNAMIC leto_setlocktimeout
+DYNAMIC leto_setseekbuffer
+DYNAMIC leto_setskipbuffer
+DYNAMIC leto_smbserver
+DYNAMIC leto_ssearch
+DYNAMIC leto_strtohex
+DYNAMIC leto_sum
+DYNAMIC leto_tablelock
+DYNAMIC leto_tableunlock
+DYNAMIC leto_togglezip
+DYNAMIC leto_udf
+DYNAMIC leto_udfexist
+DYNAMIC leto_useradd
+DYNAMIC leto_userdelete
+DYNAMIC leto_userflush
+DYNAMIC leto_usergetrights
+DYNAMIC leto_userpasswd
+DYNAMIC leto_userrights
+DYNAMIC leto_vardecr
+DYNAMIC leto_vardel
+DYNAMIC leto_varexprclear
+DYNAMIC leto_varexprcreate
+DYNAMIC leto_varexprsync
+DYNAMIC leto_varexprtest
+DYNAMIC leto_varexprvars
+DYNAMIC leto_varget
+DYNAMIC leto_vargetcached
+DYNAMIC leto_vargetlist
+DYNAMIC leto_vargetsave
+DYNAMIC leto_varincr
+DYNAMIC leto_varset
+DYNAMIC rddleto
+
+#if defined( __HBEXTREQ__ ) .OR. defined( __HBEXTERN__LETODB__REQUEST )
+   #uncommand DYNAMIC <fncs,...> => EXTERNAL <fncs>
+#endif
+
+#endif
