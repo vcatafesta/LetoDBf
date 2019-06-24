@@ -80,3 +80,5 @@ source/common/common_c.c
 -instpath=inc_sub:${hb_addons}/letodb/include/
 -instpath=tests:${hb_addons}/letodb/tests/
 
+-i/usr/include/harbour
+

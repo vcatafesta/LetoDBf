@@ -56,3 +56,5 @@ source/common/common_c.c
 {__LZ4}source/common/lz4net.c
 {__PMURHASH}source/common/PMurHash.c
 
+-i/usr/include/harbour
+

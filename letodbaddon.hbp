@@ -79,3 +79,4 @@ source/common/common.prg
 {unix}-instpath=misc:/etc/
 {hbexe}-instpath=${hb_bin}/
 
+-i/usr/include/harbour

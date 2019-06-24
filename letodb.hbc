@@ -1,9 +1,6 @@
 incpaths=include
 libpaths=lib
-
-headers=include/rddleto.ch include/leto_std.ch
+headers=include/rddleto.ch include/leto_std.ch 
 requests=LETO
-
 libs=${_HB_DYNPREF}rddleto${_HB_DYNSUFF}
-
 mt=yes
